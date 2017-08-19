@@ -50,6 +50,8 @@ hello         |  Closed   |    2/3    | (785457/85) 100%
 hi            | **Open**  |    0/2    |
 
 
+---
+
 Report for each service from the perspective of the Load Balancer (LB).
 Every LB will send its statistics.
 
