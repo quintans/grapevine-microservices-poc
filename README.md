@@ -32,6 +32,8 @@ To launch the gateway open a terminal in the __gateway__ folder and run
 go run gateway.go
 ```
 
+To test the service open a browser (or whatever you like) and run, for example, to **http://localhost:8080/api/Quintans**
+
 ## Dashboard
 The dashboard listens the published metrics from the gateway and agregates them.
 It also makes available the endpoint **/stats** for server sent events to be consumed by any compatible browser,
@@ -71,3 +73,5 @@ To launch the gateway open a terminal in the __dashboard__ folder and run
 ```
 go run dashboard.go
 ```
+
+and open browser in [http://localhost:8070/](http://localhost:8070/)
