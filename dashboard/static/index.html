@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard</title>
+</head>
+
+<body>
+	<link rel="stylesheet" type="text/css" href="/app.css">
+	<script src="https://unpkg.com/vue@latest/dist/vue.js"></script>
+
+<!-- component template -->
+<script type="text/x-template" id="grid-template">
+  <table>
+    <thead>
+      <tr>
+        <th v-for="key in columns"
+          @click="sortBy(key)"
+          :class="{ active: sortKey == key }">
+          {{ key | capitalize }}
+          <span class="arrow" :class="sortOrders[key] > 0 ? 'asc' : 'dsc'">
+          </span>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr v-for="entry in filteredData">
+        <td v-for="key in columns">
+          {{entry[key]}}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</script>
+
+<!-- demo root element -->
+<div id="demo">
+	<h3>Circuit Breakers</h3>
+  <form id="cbSearch">
+    Search <input name="query" v-model="cbGrid.searchQuery">
+  </form>
+  <demo-grid
+    :data="cbGrid.gridData"
+    :columns="cbGrid.gridColumns"
+    :filter-key="cbGrid.searchQuery">
+  </demo-grid>
+
+<p></p>
+
+	<h3>Load Balancers</h3>
+  <form id="lbSearch">
+    Search <input name="query" v-model="lbGrid.searchQuery">
+  </form>
+  <demo-grid
+    :data="lbGrid.gridData"
+    :columns="lbGrid.gridColumns"
+    :filter-key="lbGrid.searchQuery">
+  </demo-grid>
+</div>
+
+	<script type='text/javascript' src="app.js"></script>
+
+</body>
+
+</html>

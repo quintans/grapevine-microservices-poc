@@ -22,7 +22,11 @@ hi            | **Open**  |    0/2    |
 */
 
 import (
+	"encoding/json"
+	"errors"
 	"flag"
+	"fmt"
+	"net/http"
 	"sort"
 	"strings"
 	"sync"
@@ -178,46 +182,88 @@ func main() {
 	// creates maze with the default context factory.
 	var mz = maze.NewMaze(nil)
 
-	mz.GET("/api/stats", func(c maze.IContext) error {
-		lbmu.Lock()
-		cbmu.Lock()
-		// collect stats
-		// LB Stats
-		var arrLb = make([]*common.MyLBMetrics, len(servStatsLBCurr))
-		var i = 0
-		for _, v := range servStatsLBCurr {
-			arrLb[i] = v
-			i++
+	mz.Push("/ssedemo", func(c maze.IContext) error {
+		var w = c.GetResponse()
+		var f, ok = w.(http.Flusher)
+		if !ok {
+			return errors.New("No flusher")
 		}
-		// CB Stats
-		var arrCb = make([]*common.BreakerStats, len(servStatsCBCurr))
-		i = 0
-		for _, v := range servStatsCBCurr {
-			arrCb[i] = v
-			i++
-		}
-		lbmu.Unlock()
-		cbmu.Unlock()
-		// sort LB
-		sort.Slice(arrLb, func(i, j int) bool {
-			return strings.Compare(arrLb[i].Name, arrLb[j].Name) < 0 ||
-				strings.Compare(arrLb[i].Location, arrLb[j].Location) < 0
-		})
-
-		// sort CB
-		sort.Slice(arrCb, func(i, j int) bool {
-			return strings.Compare(arrCb[i].Name, arrCb[j].Name) < 0
-		})
-
-		var all = struct {
-			Lb []*common.MyLBMetrics
-			Cb []*common.BreakerStats
-		}{
-			arrLb,
-			arrCb,
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Expires", "-1")
+		for t := range time.Tick(time.Second) {
+			var _, err = w.Write([]byte(fmt.Sprintf("data: The server time is: %s\n\n", t)))
+			if err != nil {
+				return err
+			}
+			f.Flush()
+			fmt.Println("PING")
 		}
 
-		return c.JSON(all)
+		return nil
+	})
+
+	mz.Push("/stats", func(c maze.IContext) error {
+		var w = c.GetResponse()
+		var f, ok = w.(http.Flusher)
+		if !ok {
+			return errors.New("No flusher")
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Expires", "-1")
+		for {
+			lbmu.Lock()
+			cbmu.Lock()
+			// collect stats
+			// LB Stats
+			var arrLb = make([]*common.MyLBMetrics, len(servStatsLBCurr))
+			var i = 0
+			for _, v := range servStatsLBCurr {
+				arrLb[i] = v
+				i++
+			}
+			// CB Stats
+			var arrCb = make([]*common.BreakerStats, len(servStatsCBCurr))
+			i = 0
+			for _, v := range servStatsCBCurr {
+				arrCb[i] = v
+				i++
+			}
+			lbmu.Unlock()
+			cbmu.Unlock()
+			// sort LB
+			sort.Slice(arrLb, func(i, j int) bool {
+				return strings.Compare(arrLb[i].Name, arrLb[j].Name) < 0 ||
+					strings.Compare(arrLb[i].Location, arrLb[j].Location) < 0
+			})
+
+			// sort CB
+			sort.Slice(arrCb, func(i, j int) bool {
+				return strings.Compare(arrCb[i].Name, arrCb[j].Name) < 0
+			})
+
+			var value = struct {
+				Lb []*common.MyLBMetrics
+				Cb []*common.BreakerStats
+			}{
+				arrLb,
+				arrCb,
+			}
+
+			result, err := json.Marshal(value)
+			if err != nil {
+				return err
+			}
+			// writing sets status to OK
+			_, err = w.Write([]byte(fmt.Sprintf("data: %s\n\n", string(result))))
+			if err != nil {
+				return err
+			}
+
+			f.Flush()
+			time.Sleep(time.Second * common.StatsPeriod)
+		}
+
+		return nil
 	})
 
 	mz.Static("/*", "./static")
