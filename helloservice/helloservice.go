@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/quintans/grapevine"
-	"github.com/quintans/grapevine-microservices/common"
+	"github.com/quintans/grapevine-microservices-poc/common"
 	"github.com/quintans/toolkit/log"
 )
 

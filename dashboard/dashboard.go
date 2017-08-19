@@ -30,7 +30,7 @@ import (
 
 	"github.com/quintans/gomsg"
 	"github.com/quintans/grapevine"
-	"github.com/quintans/grapevine-microservices/common"
+	"github.com/quintans/grapevine-microservices-poc/common"
 	"github.com/quintans/maze"
 	"github.com/quintans/toolkit"
 	"github.com/quintans/toolkit/log"
@@ -178,7 +178,7 @@ func main() {
 	// creates maze with the default context factory.
 	var mz = maze.NewMaze(nil)
 
-	mz.GET("/", func(c maze.IContext) error {
+	mz.GET("/api/stats", func(c maze.IContext) error {
 		lbmu.Lock()
 		cbmu.Lock()
 		// collect stats
@@ -219,6 +219,8 @@ func main() {
 
 		return c.JSON(all)
 	})
+
+	mz.Static("/*", "./static")
 
 	if err := mz.ListenAndServe(*httpAddr); err != nil {
 		panic(err)
