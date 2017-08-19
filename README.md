@@ -40,9 +40,9 @@ with a refresh rate of 10s.
 It also provides a web frontend to presents the information in the following layout:
 
 ---
-Global report for each service, from the perspective of a Circuit Breaker (CB).
-
 ### Circuit Breaker
+
+Global report for each service, from the perspective of a Circuit Breaker (CB).
 
 Service Name  | CB State  |  ok / all | Success
 --------------|:---------:|:---------:|:-------------------:
@@ -52,10 +52,10 @@ hi            | **Open**  |    0/2    |
 
 <br>
 
+### Load Balacing
+
 Report for each service from the perspective of the Load Balancer (LB).
 Every LB will send its statistics.
-
-### Load Balacing
 
 Service Name  | Quarantine  |   Success           |   Location
 :-------------|:-----------:|:-------------------:|----------------
