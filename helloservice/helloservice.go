@@ -43,10 +43,9 @@ func main() {
 		} else if p < *bad {
 			logger.Warnf("Badness of %d. 'Hello' will take longer", p)
 			time.Sleep(time.Second * 2)
-			return "Hellozzz " + name
 		}
 
-		return "Hello " + name
+		return "Hello " + name + " from " + *gvAddr
 	})
 
 	logger.Infof("Grapevine at %s", *gvAddr)

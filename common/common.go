@@ -11,25 +11,36 @@ import (
 
 const StatsPeriod = 10
 const ServiceHello = "api/Hello"
-const ServiceStatsCB = "StatsCB"
-const ServiceStatsLB = "StatsLB"
+const ServiceStatsCB = "dash/StatsCB"
+const ServiceStatsLB = "dash/StatsLB"
+const GrapevineType = "grapevine"
 
 const StatsKeySep = "@"
 
 const ClusterName = "XPTO"
 
+const HttpProvider = "http.provider"
+const HttpProviderType = "http"
+
+type Stats struct {
+	Successes uint32
+	Fails     uint32
+	Name      string
+	Weight    uint32
+	Period    uint32
+	Type      string
+}
+
 type BreakerStats struct {
-	breaker.Stats
-	Name   string
-	State  breaker.EState
-	Weight uint32
+	Stats
+	State breaker.EState
 }
 
 var _ breaker.Metrics = &BreakerMetrics{}
 
 type BreakerMetrics struct {
 	sync.RWMutex
-	breaker.Stats
+	Stats
 }
 
 func (m *BreakerMetrics) IncSuccess() {
@@ -44,7 +55,7 @@ func (m *BreakerMetrics) IncFailure() {
 	m.Unlock()
 }
 
-func (m *BreakerMetrics) Clear() breaker.Stats {
+func (m *BreakerMetrics) Clear() Stats {
 	m.RLock()
 	defer m.RUnlock()
 	var s = m.Stats
@@ -60,12 +71,9 @@ type MyLB struct {
 }
 
 type MyLBMetrics struct {
-	Successes    uint32
-	Fails        uint32
-	Name         string
+	Stats
 	Location     string
 	Quarantine   bool
-	Weight       uint32
 	inQuarantine func(string) bool
 }
 

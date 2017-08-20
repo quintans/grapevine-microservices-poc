@@ -2,8 +2,11 @@ package main
 
 import (
 	"flag"
+	"strings"
+	"sync"
 	"time"
 
+	"github.com/quintans/gomsg"
 	"github.com/quintans/grapevine"
 	"github.com/quintans/grapevine-microservices-poc/common"
 	"github.com/quintans/maze"
@@ -16,6 +19,13 @@ func init() {
 	log.Register("/", log.DEBUG).ShowCaller(true)
 }
 
+func port(a string) string {
+	var i = strings.LastIndex(a, ":")
+	return a[i:]
+}
+
+const httpEndpoint = "/api/:Name"
+
 func main() {
 	var logger = log.LoggerFor("gateway")
 
@@ -27,6 +37,7 @@ func main() {
 		BeaconName: common.ClusterName,
 	})
 	peer.SetLogger(logger)
+	peer.Metadata()[common.HttpProvider] = httpEndpoint
 	var lb = common.NewMyLB()
 	peer.SetLoadBalancer(lb)
 
@@ -49,7 +60,18 @@ func main() {
 	var bm = &common.BreakerMetrics{}
 	cb.SetMetrics(bm)
 
-	mz.GET("/api/:Name", func(c maze.IContext) error {
+	var mugw sync.RWMutex
+	var gwStats common.MyLBMetrics
+	var ip, err = gomsg.IP()
+	if err != nil {
+		panic(err)
+	}
+	gwStats.Location = "http://" + ip + ":" + port(*httpAddr)
+	gwStats.Name = httpEndpoint
+	gwStats.Period = common.StatsPeriod
+	gwStats.Type = common.HttpProviderType
+
+	mz.GET(httpEndpoint, func(c maze.IContext) error {
 		var values = c.PathValues()
 		var name = values.AsString("Name")
 
@@ -57,7 +79,7 @@ func main() {
 
 		var result string
 		// call the remote service with circuit breaker
-		<-cb.Try(
+		var err = <-cb.Try(
 			func() error {
 				return <-peer.RequestTimeout(common.ServiceHello, name, func(r string) {
 					result = r
@@ -68,25 +90,48 @@ func main() {
 				return nil
 			},
 		)
+		mugw.Lock()
+		if err == nil {
+			gwStats.Successes++
+		} else {
+			gwStats.Fails++
+		}
+		mugw.Unlock()
 
 		return c.JSON(result)
 	})
 
 	// collects all services statistics
-	const period = 10
 	toolkit.NewTicker(time.Second*common.StatsPeriod, func(t time.Time) {
-		s := lb.ClearStats()
+		var lbStats = lb.ClearStats()
+		for i := 0; i < len(lbStats); i++ {
+			lbStats[i].Period = common.StatsPeriod
+			lbStats[i].Type = common.GrapevineType
+		}
+		lbStats = append(lbStats, gwStats)
 		// LB stats
-		peer.Publish(common.ServiceStatsLB, s)
+		peer.Publish(common.ServiceStatsLB, lbStats)
+
 		// CB stats
-		var stats = make([]common.BreakerStats, 1)
+		var cbStats = make([]common.BreakerStats, 2)
 		// for "Hello" CB
-		stats[0] = common.BreakerStats{
+		cbStats[0] = common.BreakerStats{
 			Stats: bm.Clear(),
-			Name:  common.ServiceHello,
 			State: cb.State(),
 		}
-		peer.Publish(common.ServiceStatsCB, stats)
+		cbStats[0].Name = common.ServiceHello
+		cbStats[0].Period = common.StatsPeriod
+		cbStats[0].Type = common.GrapevineType
+
+		cbStats[1] = common.BreakerStats{
+			Stats: gwStats.Stats,
+			State: breaker.CLOSE,
+		}
+		peer.Publish(common.ServiceStatsCB, cbStats)
+
+		// gateway stats
+		gwStats.Fails = 0
+		gwStats.Successes = 0
 	})
 
 	mz.GET("/", func(c maze.IContext) error {
@@ -97,5 +142,4 @@ func main() {
 	if err := mz.ListenAndServe(*httpAddr); err != nil {
 		panic(err)
 	}
-
 }

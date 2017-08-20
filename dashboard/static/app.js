@@ -2,6 +2,7 @@
 var grid = Vue.component('demo-grid', {
   template: '#grid-template',
   props: {
+	sortColumn: String,
     data: Array,
     columns: Array,
     filterKey: String
@@ -58,12 +59,12 @@ var demo = new Vue({
   data: {
 	cbGrid: {
 	    searchQuery: '',
-	    gridColumns: ['Name', 'State', 'Success', 'Nodes'],
+	    gridColumns: ['Name', 'State', 'Success', 'Rate', 'Nodes', 'Type'],
 	    gridData: []
 	},
 	lbGrid: {
 	    searchQuery: '',
-	    gridColumns: ['Name', 'Quarantine', 'Success', 'Location'],
+	    gridColumns: ['Name', 'Quarantine', 'Success', 'Rate', 'Location', 'Type'],
 	    gridData: []
 	}
   }
@@ -96,6 +97,7 @@ evtSource.onmessage = function(e) {
 			break;
 		}
 
+		x.Rate = (x.Successes / x.Period).toFixed() + '/s'
 		x.Success = ratio(x.Successes, x.Fails)
 		// Nodes
 		var all = 0
@@ -114,6 +116,7 @@ evtSource.onmessage = function(e) {
 
 	data.Lb.forEach(function (x) {
 		x.Success = ratio(x.Successes, x.Fails)
+		x.Rate = (x.Successes / x.Period).toFixed() + '/s'
 	})
 	demo.lbGrid.gridData = data.Lb
 }

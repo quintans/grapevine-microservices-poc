@@ -75,13 +75,17 @@ func main() {
 			var key = stat.Name + common.StatsKeySep + stat.Location
 			// use bucket #2
 			var ss = servStatsLBNext[key]
-			if ss != nil {
+			if ss == nil {
+				var v = stat
+				servStatsLBNext[key] = &v
+			} else {
 				// compute accumulated average: (W0 * V0 + V1) / (W0 + 1)
 				var weight = ss.Weight + 1
 				ss.Fails = (ss.Weight*ss.Fails + stat.Fails) / weight
 				ss.Successes = (ss.Weight*ss.Successes + stat.Successes) / weight
 				ss.Weight = weight
 				ss.Quarantine = stat.Quarantine
+				ss.Type = stat.Type
 			}
 		}
 		lbmu.Unlock()
@@ -94,79 +98,48 @@ func main() {
 		for _, stat := range stats {
 			// use bucket #2
 			var ss = servStatsCBNext[stat.Name]
-			if ss != nil {
+			if ss == nil {
+				var v = stat
+				servStatsCBNext[stat.Name] = &v
+			} else {
 				// compute accumulated average: (W0 * V0 + V1) / (W0 + 1)
 				var weight = ss.Weight + 1
 				ss.Fails = (ss.Weight*ss.Fails + stat.Fails) / weight
 				ss.Successes = (ss.Weight*ss.Successes + stat.Successes) / weight
 				ss.Weight = weight
 				ss.State = stat.State
+				ss.Type = stat.Type
 			}
 		}
 		cbmu.Unlock()
+	})
+	peer.AddNewTopicListener(func(event gomsg.TopicEvent) {
+		// for statistics, we only consider services under "api/"
+		if strings.HasPrefix(event.Name, "api/") {
+			var addr = peerAddress(event.Wire)
+			addEndpoint(event.Name, addr)
+		}
+	})
+	peer.AddDropTopicListener(func(event gomsg.TopicEvent) {
+		if strings.HasPrefix(event.Name, "api/") {
+			var addr = peerAddress(event.Wire)
+			dropEndpoint(event.Name, addr)
+		}
 	})
 
 	// clean statistics. Move statistics from bucket next to current
 	toolkit.NewTicker(time.Second*common.StatsPeriod, func(t time.Time) {
 		lbmu.Lock()
 		servStatsLBCurr = servStatsLBNext
+		// reset
 		servStatsLBNext = make(map[string]*common.MyLBMetrics)
-		// inti
-		for k, stat := range servStatsLBCurr {
-			servStatsLBNext[k] = &common.MyLBMetrics{
-				Name:     stat.Name,
-				Location: stat.Location,
-			}
-		}
 		lbmu.Unlock()
 
 		cbmu.Lock()
 		servStatsCBCurr = servStatsCBNext
+		// reset
 		servStatsCBNext = make(map[string]*common.BreakerStats)
-		// inti
-		for k, stat := range servStatsCBCurr {
-			servStatsCBNext[k] = &common.BreakerStats{
-				Name: stat.Name,
-			}
-		}
-
 		cbmu.Unlock()
-	})
-	peer.AddNewTopicListener(func(event gomsg.TopicEvent) {
-		// for statistics, we only consider services under "api/"
-		if strings.HasPrefix(event.Name, "api/") {
-			// LB
-			var addr = event.Wire.RemoteMetadata()[grapevine.PeerAddressKey].(string)
-			var key = event.Name + common.StatsKeySep + addr
-			lbmu.Lock()
-			servStatsLBNext[key] = &common.MyLBMetrics{
-				Name:     event.Name,
-				Location: addr,
-			}
-			lbmu.Unlock()
-
-			// CB
-			cbmu.Lock()
-			servStatsCBNext[event.Name] = &common.BreakerStats{
-				Name: event.Name,
-			}
-			cbmu.Unlock()
-		}
-	})
-	peer.AddDropTopicListener(func(event gomsg.TopicEvent) {
-		if strings.HasPrefix(event.Name, "api/") {
-			var addr = event.Wire.RemoteMetadata()[grapevine.PeerAddressKey].(string)
-
-			// LB
-			lbmu.Lock()
-			delete(servStatsLBNext, event.Name+common.StatsKeySep+addr)
-			lbmu.Unlock()
-
-			// CB
-			cbmu.Lock()
-			delete(servStatsCBNext, event.Name)
-			cbmu.Unlock()
-		}
 	})
 
 	go func() {
@@ -214,6 +187,45 @@ func main() {
 	if err := mz.ListenAndServe(*httpAddr); err != nil {
 		panic(err)
 	}
+}
+
+func peerAddress(w *gomsg.Wire) string {
+	return w.RemoteMetadata()[grapevine.PeerAddressKey].(string)
+}
+
+func addEndpoint(name, addr string) {
+	// LB
+	var key = name + common.StatsKeySep + addr
+	lbmu.Lock()
+	servStatsLBNext[key] = &common.MyLBMetrics{
+		Stats: common.Stats{
+			Name: name,
+		},
+		Location: addr,
+	}
+	lbmu.Unlock()
+
+	// CB
+	cbmu.Lock()
+	servStatsCBNext[name] = &common.BreakerStats{
+		Stats: common.Stats{
+			Name: name,
+		},
+	}
+	cbmu.Unlock()
+}
+
+func dropEndpoint(name, addr string) {
+	// LB
+	lbmu.Lock()
+	delete(servStatsLBNext, name+common.StatsKeySep+addr)
+	lbmu.Unlock()
+
+	// CB
+	cbmu.Lock()
+	delete(servStatsCBNext, name)
+	cbmu.Unlock()
+
 }
 
 func encode() ([]byte, error) {
