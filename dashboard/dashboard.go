@@ -39,7 +39,7 @@ import (
 )
 
 func init() {
-	log.Register("/", log.DEBUG).ShowCaller(true)
+	log.Register("/", log.INFO).ShowCaller(true)
 }
 
 var peer *grapevine.Peer

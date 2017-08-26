@@ -16,7 +16,7 @@ import (
 )
 
 func init() {
-	log.Register("/", log.DEBUG).ShowCaller(true)
+	log.Register("/", log.INFO).ShowCaller(true)
 }
 
 func port(a string) string {

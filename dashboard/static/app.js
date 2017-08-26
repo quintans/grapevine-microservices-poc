@@ -97,7 +97,9 @@ evtSource.onmessage = function(e) {
 			break;
 		}
 
-		x.Rate = (x.Successes / x.Period).toFixed() + '/s'
+		if (x.Period) {
+			x.Rate = (x.Successes / x.Period).toFixed() + '/s'
+		}
 		x.Success = ratio(x.Successes, x.Fails)
 		// Nodes
 		var all = 0
@@ -116,7 +118,9 @@ evtSource.onmessage = function(e) {
 
 	data.Lb.forEach(function (x) {
 		x.Success = ratio(x.Successes, x.Fails)
-		x.Rate = (x.Successes / x.Period).toFixed() + '/s'
+		if (x.Period) {
+			x.Rate = (x.Successes / x.Period).toFixed() + '/s'
+		}
 	})
 	demo.lbGrid.gridData = data.Lb
 }

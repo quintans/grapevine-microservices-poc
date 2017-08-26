@@ -107,20 +107,21 @@ func (lb MyLB) getMetrics(w *gomsg.Wire, m gomsg.Envelope) *MyLBMetrics {
 		metrics = &MyLBMetrics{}
 		metrics.Name = m.Name
 		metrics.Location = loc
-		metrics.inQuarantine = w.Policy.InQuarantine
+		metrics.inQuarantine = w.Policy.Quarantined
 		lb.metrics[name] = metrics
 	}
 	return metrics
 }
 
-func (lb MyLB) Done(w *gomsg.Wire, m gomsg.Envelope, e error) {
-	lb.SimpleLB.Done(w, m, e)
+func (lb MyLB) Done(wirer gomsg.Wirer, m gomsg.Envelope, e error) {
+	lb.SimpleLB.Done(wirer, m, e)
+	var w = wirer.Wire()
 
 	if strings.HasPrefix(m.Name, "api/") {
 		lb.Lock()
 		var metrics = lb.getMetrics(w, m)
 		if metrics != nil {
-			metrics.Quarantine = w.Policy.InQuarantine(m.Name)
+			metrics.Quarantine = w.Policy.Quarantined(m.Name)
 			if e == nil {
 				metrics.Successes++
 			} else {
