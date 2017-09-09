@@ -66,7 +66,7 @@ func (m *BreakerMetrics) Clear() Stats {
 
 type MyLB struct {
 	sync.RWMutex
-	gomsg.SimpleLB
+	*gomsg.SimpleLB
 	metrics map[string]*MyLBMetrics
 }
 

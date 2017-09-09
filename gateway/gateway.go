@@ -83,7 +83,7 @@ func main() {
 			func() error {
 				return <-peer.RequestTimeout(common.ServiceHello, name, func(r string) {
 					result = r
-				}, time.Second*3)
+				}, time.Second)
 			},
 			func(e error) error {
 				result = "Ups, fallback..."
