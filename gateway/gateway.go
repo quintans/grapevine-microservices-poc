@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -98,7 +99,7 @@ func main() {
 		}
 		mugw.Unlock()
 
-		return c.JSON(result)
+		return c.JSON(http.StatusOK, result)
 	})
 
 	// collects all services statistics
@@ -135,7 +136,7 @@ func main() {
 	})
 
 	mz.GET("/", func(c maze.IContext) error {
-		return c.JSON("hello")
+		return c.JSON(http.StatusOK, "hello")
 	})
 
 	logger.Infof("Listening http at %s", *httpAddr)
