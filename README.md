@@ -1,5 +1,5 @@
 # grapevine-microservice-poc
-Proof of concept using grapevine to build a microservice solution
+Proof of concept using grapevine to build a microservice solution that follows a event driven architecture.
 
 It includes a service, a gateway and a taskboard.
 

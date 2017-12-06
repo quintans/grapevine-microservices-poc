@@ -63,7 +63,10 @@ func main() {
 	//===================
 
 	peer = grapevine.NewPeer(grapevine.Config{
-		BeaconName: common.ClusterName,
+		Addr: *gvAddr,
+		Beacon: grapevine.Beacon{
+			Name: common.ClusterName,
+		},
 	})
 	peer.SetLogger(logger)
 
@@ -143,7 +146,7 @@ func main() {
 	})
 
 	go func() {
-		if err := <-peer.Bind(*gvAddr); err != nil {
+		if err := <-peer.Bind(); err != nil {
 			panic(err)
 		}
 	}()
